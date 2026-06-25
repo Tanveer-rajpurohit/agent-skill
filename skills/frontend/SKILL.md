@@ -237,3 +237,86 @@ Targets: LCP < 2.5s, CLS < 0.1, INP < 200ms.
 4. If there's a perf or a11y consideration, one line on it.
 5. Mention the one trade-off you made (e.g. "Query over RSC here because the list
    refetches on a filter the user changes client-side").
+
+---
+
+## Tailwind CSS Rules (from PatrickJS tailwind rules)
+
+```tsx
+// Mobile-first always
+<div className="flex flex-col md:flex-row gap-4 md:gap-8">
+
+// Custom design tokens in tailwind.config.ts
+theme: {
+  extend: {
+    colors: {
+      brand: { DEFAULT: '#6366f1', dark: '#4f46e5' },
+      surface: 'hsl(var(--surface))',
+    },
+    spacing: { 18: '4.5rem', 22: '5.5rem' },
+  }
+}
+
+// Use CSS variables for dark mode
+:root { --surface: 255 255 255; }
+.dark { --surface: 15 15 15; }
+// Then: bg-[hsl(var(--surface))]
+
+// @apply only for repeated patterns, not one-offs
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-brand text-white rounded-lg 
+           hover:bg-brand-dark transition-colors;
+  }
+}
+```
+
+**Forbidden in Tailwind projects**
+- No arbitrary values for design tokens (use config instead)
+- No inline `style={{}}` for things Tailwind can handle
+- No custom CSS for layout — Tailwind grid/flex covers it
+
+---
+
+## Next.js App Router Patterns (from PatrickJS react-nextjs rules)
+
+```tsx
+// Server Component (default) — fetch data here
+// No useState, no useEffect, no 'use client'
+export default async function UserPage({ params }: { params: { id: string } }) {
+  const user = await db.user.findById(params.id)  // direct DB call
+  if (!user) notFound()
+  return <UserProfile user={user} />
+}
+
+// Client Component — only when needed
+'use client'
+export function InteractiveWidget({ initialData }: Props) {
+  const [state, setState] = useState(initialData)
+  // ...
+}
+
+// Streaming with Suspense
+export default function Page() {
+  return (
+    <Suspense fallback={<Skeleton />}>
+      <SlowDataComponent />  {/* loads independently */}
+    </Suspense>
+  )
+}
+
+// Server Actions (replace API routes for mutations)
+'use server'
+export async function updateUser(formData: FormData) {
+  const id = formData.get('id') as string
+  await db.user.update(id, { name: formData.get('name') as string })
+  revalidatePath('/users')
+}
+```
+
+**Rules**
+- Default to Server Components — add `'use client'` only when needed
+- Never use Pages Router (`pages/` dir) — always App Router (`app/`)
+- Data fetching in Server Components, not useEffect
+- Server Actions for mutations, not separate API routes (for simple cases)
+- Suspense boundaries around every async Server Component

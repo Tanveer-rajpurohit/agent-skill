@@ -873,3 +873,85 @@ CREATE TABLE users (
 ❌ Logging AND returning the same error      → log once at boundary, return generic msg
 ❌ Unbounded cleanup goroutine               → select on stop channel
 ```
+
+---
+
+## Scalability Rules (from PatrickJS go-backend-scalability rules)
+
+### Always think about these before writing a Go service:
+
+**Database**
+- Connection pool sizing: `pgxpool.Config{MaxConns: runtime.NumCPU() * 4}`
+- Use read replicas for read-heavy routes — separate DSN from env
+- EXPLAIN ANALYZE before shipping any non-trivial query
+- All time columns: TIMESTAMPTZ, never TIMESTAMP
+
+**Concurrency**
+```go
+// Use errgroup for parallel work with cancellation
+g, ctx := errgroup.WithContext(ctx)
+g.Go(func() error { return fetchUser(ctx, id) })
+g.Go(func() error { return fetchOrders(ctx, id) })
+if err := g.Wait(); err != nil { return err }
+
+// Rate limit per user — not global
+limiter := rate.NewLimiter(rate.Every(time.Second), 10) // 10 req/s
+if !limiter.Allow() { return ErrRateLimited }
+```
+
+**HTTP Server Timeouts — Always Set These**
+```go
+srv := &http.Server{
+  ReadTimeout:       5 * time.Second,
+  WriteTimeout:      10 * time.Second,
+  IdleTimeout:       120 * time.Second,
+  ReadHeaderTimeout: 2 * time.Second,
+}
+```
+
+**Graceful Shutdown — Required in Production**
+```go
+ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+defer stop()
+
+go func() { srv.ListenAndServe() }()
+
+<-ctx.Done()
+shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+defer cancel()
+srv.Shutdown(shutdownCtx)
+```
+
+**Caching Strategy**
+```go
+// Check cache → miss → fetch DB → set cache
+func (s *Service) GetUser(ctx context.Context, id string) (*User, error) {
+  key := fmt.Sprintf("user:%s", id)
+  if cached, err := s.redis.Get(ctx, key).Result(); err == nil {
+    var u User
+    if err := json.Unmarshal([]byte(cached), &u); err == nil {
+      return &u, nil
+    }
+  }
+  user, err := s.db.GetUser(ctx, id)
+  if err != nil { return nil, err }
+  
+  data, _ := json.Marshal(user)
+  s.redis.Set(ctx, key, data, 5*time.Minute)
+  return user, nil
+}
+```
+
+**Structured Logging (not fmt.Println)**
+```go
+import "log/slog"
+
+slog.InfoContext(ctx, "user created", 
+  slog.String("user_id", user.ID),
+  slog.String("email", user.Email),
+)
+slog.ErrorContext(ctx, "payment failed",
+  slog.String("order_id", orderID),
+  slog.Any("error", err),
+)
+```

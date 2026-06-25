@@ -1,75 +1,87 @@
-# Portable AI Skills + Instructions
+# Tanveer's Agent Skill Library
 
-A drop-anywhere library of engineering **skills** and a universal **operating
-instructions** file (`AGENTS.md` / `CLAUDE.md`) that makes any AI assistant write
-code the way you want — without re-explaining yourself every chat.
+Universal AI coding instructions and skills for Claude Code, agy CLI, 
+Cursor, Codex, Gemini CLI — and any other coding agent.
 
-Built for a Go / TypeScript / React / Next.js / AWS stack, but the skills are
-general SDE craft.
-
-## What's here
+## Structure
 
 ```
 .
-├── AGENTS.md      # Universal operating instructions (who you are, stack, standards)
-├── CLAUDE.md      # Mirror of AGENTS.md for tools that look for CLAUDE.md
-└── skills/
-    ├── frontend/                      React / Next.js / TypeScript
-    ├── ui-design/                     Visual quality, design systems, layout
-    ├── gsap/                          GSAP + ScrollTrigger animation
-    ├── go-backend/                    Idiomatic Go services & concurrency
-    ├── api-design/                    REST/API contracts, errors, versioning
-    ├── testing/                       Go table-driven, Vitest/RTL, integration
-    ├── ai-rag-engineering/            RAG pipelines, streaming, citations
-    ├── devops-deploy/                 Docker, CI/CD, AWS, rollback-safe deploys
-    ├── system-design/                 Scaling & distributed systems
-    ├── improve-codebase-architecture/ Refactoring toward deep modules
-    └── caveman/                       Token-efficient responses
+├── AGENTS.md                        ← source of truth (all agents read this)
+├── CLAUDE.md                        ← mirrors AGENTS.md (Claude Code specific)
+│
+├── instructions/                    ← always-on rules, loaded every session
+│   ├── file-operations.md           ← built-in file tools only, never bash for files
+│   └── clean-code.md                ← naming, functions, constants, comments
+│
+└── skills/                          ← load on demand, by topic
+    ├── frontend/                    ← React, Next.js App Router, Tailwind, TypeScript
+    ├── ui-design/                   ← Design systems, visual quality, spacing, color
+    ├── gsap/                        ← GSAP + ScrollTrigger animations
+    ├── go-backend/                  ← Go services, chi, sqlc, JWT, Redis, scalability
+    ├── api-design/                  ← REST/GraphQL contracts, versioning, errors
+    ├── code-review/                 ← Staff engineer level bugs + security + perf review
+    ├── git-operations/              ← Commits, revert, merge conflicts, history, PR prep
+    ├── testing/                     ← Go table tests, Vitest, RTL, mocking strategy
+    ├── ai-rag-engineering/          ← RAG pipelines, pgvector, streaming, citations
+    ├── devops-deploy/               ← Docker, GitHub Actions, AWS, zero-downtime
+    ├── mediasoup-webrtc/            ← WebRTC SFU, MediaSoup, transports, producers
+    ├── system-design/               ← Architecture, distributed systems, scale
+    ├── improve-codebase-architecture/ ← Refactoring, deep modules, testability
+    └── caveman/                     ← Token-efficient ultra-brief mode
 ```
 
-Each skill is a self-contained folder with a `SKILL.md` (and sometimes reference
-files). A `SKILL.md` has YAML frontmatter (`name`, `description`) that tells the
-AI **when** to load it, followed by the actual guidance and code patterns.
+## How to Use
 
-## How to use it in any project
+### For Claude Code
+Global setup (applies to all projects):
+```powershell
+Copy-Item "AGENTS.md" "$env:USERPROFILE\.claude\CLAUDE.md"
+Copy-Item -Recurse "instructions" "$env:USERPROFILE\.claude\instructions"
+Copy-Item -Recurse "skills" "$env:USERPROFILE\.claude\skills"
+```
 
-**1. Drop the instructions at the repo root.** Copy `AGENTS.md` (and `CLAUDE.md`)
-into the project you're working on. That's the "never re-explain" layer.
+Project-specific (in any repo):
+```bash
+cp AGENTS.md ./AGENTS.md
+cp CLAUDE.md ./CLAUDE.md
+```
 
-**2. Bring the skills you need.** Either:
-- copy the whole `skills/` folder in, or
-- copy only the relevant skill folders (e.g. just `skills/frontend` for a UI repo).
+### For agy CLI (Antigravity)
+```bash
+# Global
+cp AGENTS.md ~/.gemini/GEMINI.md
+cp -r instructions ~/.gemini/instructions/
+cp -r skills ~/.agents/skills/
 
-**3. Works across AI tools** because the format is plain Markdown:
+# Project
+cp AGENTS.md ./AGENTS.md
+```
 
-| Tool | Looks for | What to do |
-|---|---|---|
-| Claude Code | `CLAUDE.md`, `.claude/skills/` | Copy `CLAUDE.md` to root; put skills in `.claude/skills/` |
-| Cursor | `AGENTS.md`, `.cursor/rules/` | Copy `AGENTS.md` to root |
-| Codex / Gemini CLI | `AGENTS.md` | Copy `AGENTS.md` to root |
-| Windsurf / others | varies | Point the tool at `AGENTS.md`, or paste the relevant `SKILL.md` |
+### For Cursor / Windsurf / Codex
+```bash
+cp AGENTS.md .cursorrules   # or .windsurfrules
+cp -r skills .agents/skills/
+```
 
-For tools without auto-loading, just paste the relevant `SKILL.md` into the chat
-when you start a task — the content is the value, the filename is just discovery.
+## Triggering Skills
 
-## Keeping a single source of truth
+Skills auto-trigger when Claude/agy reads the AGENTS.md skill table and
+matches your request to a skill description. You can also trigger manually:
 
-Keep the master copy of this library in one place (e.g. this repo, or
-`~/.agent-skills`). When starting a new project, copy in what you need. Update the
-master, re-copy. `AGENTS.md` is the source of truth; `CLAUDE.md` mirrors it.
+```
+/code-review     ← review current file
+/git-operations  ← git help
+/mediasoup-webrtc ← WebRTC help
+/go-backend      ← Go patterns
+```
 
-## Authoring new skills
+## Sources
 
-1. `skills/<name>/SKILL.md` with frontmatter:
-   ```yaml
-   ---
-   name: <kebab-case>
-   description: >
-     One paragraph that lists the exact triggers — topics, phrases, and tasks —
-     that should make an AI load this skill.
-   ---
-   ```
-2. Body: lead with the rules, then **real runnable code patterns**, idioms,
-   anti-patterns, and trade-offs. Dense over chatty. Numbers over adjectives.
-3. Split long material into reference files (`PATTERNS.md`, etc.) and route to
-   them from `SKILL.md`, like `skills/system-design` does.
+Skills built from:
+- Tanveer's production experience (CoNestify WebRTC SFU, LawVriksh RAG, TaxCopilot)
+- Tanveer's own MediaSoup beginner guide
+- PatrickJS/awesome-cursorrules (clean-code, gitflow, docker, go, tailwind, react-nextjs)
+- alirezarezvani/claude-skills (api-design-reviewer)
+- garrytan skills (staff engineer code review patterns)
+- VoltAgent/awesome-agent-skills (fullstack, Next.js patterns)
